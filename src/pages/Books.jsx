@@ -1,166 +1,214 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import BookCard from '../components/BookCard'
 
+const API_URL = 'http://localhost:5000/api/books'
+
 function Books() {
-  const [books, setBooks] = useState(() => {
-    const savedBooks = localStorage.getItem('books')
-    return savedBooks ? JSON.parse(savedBooks) : []
-  })
+const [books, setBooks] = useState([])
 
-  const [title, setTitle] = useState('')
-  const [author, setAuthor] = useState('')
-  const [genre, setGenre] = useState('')
-  const [isbn, setIsbn] = useState('')
-  const [quantity, setQuantity] = useState('')
-  const [editingId, setEditingId] = useState(null)
+const [title, setTitle] = useState('')
+const [author, setAuthor] = useState('')
+const [genre, setGenre] = useState('')
+const [isbn, setIsbn] = useState('')
+const [quantity, setQuantity] = useState('')
+const [editingId, setEditingId] = useState(null)
 
-  useEffect(() => {
-    localStorage.setItem('books', JSON.stringify(books))
-  }, [books])
+// Load books from MySQL through Express
+const loadBooks = useCallback(async () => {
+try {
+const response = await fetch(API_URL)
 
-  function handleSubmit(event) {
-    event.preventDefault()
+if (!response.ok) {
+throw new Error('Failed to load books.')
+}
 
-    if (!title.trim() || !author.trim() || !genre.trim() || !isbn.trim()) {
-      alert('Please fill in all book details.')
-      return
-    }
+const data = await response.json()
+setBooks(data)
+} catch (error) {
+console.error('Error loading books:', error)
+alert('Could not load books. Check your backend server.')
+}
+}, [])
 
-    if (quantity === '' || Number(quantity) <= 0) {
-      alert('Quantity must be greater than 0.')
-      return
-    }
+useEffect(() => {
+loadBooks()
+}, [loadBooks])
 
-    if (editingId !== null) {
-      setBooks(
-        books.map((book) =>
-          book.id === editingId
-            ? {
-                ...book,
-                title: title.trim(),
-                author: author.trim(),
-                genre: genre.trim(),
-                isbn: isbn.trim(),
-                quantity: Number(quantity),
-              }
-            : book
-        )
-      )
+// Add or update a book
+async function handleSubmit(event) {
+event.preventDefault()
 
-      alert('Book updated successfully!')
-      setEditingId(null)
-    } else {
-      const newBook = {
-        id: Date.now(),
-        title: title.trim(),
-        author: author.trim(),
-        genre: genre.trim(),
-        isbn: isbn.trim(),
-        quantity: Number(quantity),
-      }
+if (!title.trim() || !author.trim() || !genre.trim() || !isbn.trim()) {
+alert('Please fill in all book details.')
+return
+}
 
-      setBooks([...books, newBook])
-      alert('Book added successfully!')
-    }
+if (quantity === '' || Number(quantity) <= 0) {
+alert('Quantity must be greater than 0.')
+return
+}
 
-    clearForm()
-  }
+const bookData = {
+title: title.trim(),
+author: author.trim(),
+genre: genre.trim(),
+isbn: isbn.trim(),
+quantity: Number(quantity),
+}
 
-  function editBook(book) {
-    setTitle(book.title)
-    setAuthor(book.author)
-    setGenre(book.genre)
-    setIsbn(book.isbn)
-    setQuantity(book.quantity)
-    setEditingId(book.id)
-  }
+try {
+const response = await fetch(
+editingId !== null ? `${API_URL}/${editingId}` : API_URL,
+{
+method: editingId !== null ? 'PUT' : 'POST',
+headers: {
+'Content-Type': 'application/json',
+},
+body: JSON.stringify(bookData),
+}
+)
 
-  function deleteBook(id) {
-    setBooks(books.filter((book) => book.id !== id))
-  }
+const data = await response.json()
 
-  function clearForm() {
-    setTitle('')
-    setAuthor('')
-    setGenre('')
-    setIsbn('')
-    setQuantity('')
-  }
+if (!response.ok) {
+throw new Error(data.message || 'Something went wrong.')
+}
 
-  return (
-    <main className="page-content">
-      <div className="page-header">
-        <p className="small-title">LIBRARY</p>
-        <h1>Book Management</h1>
-        <p>Add, update and manage books in the library.</p>
-      </div>
+alert(data.message)
 
-      <section className="content-card">
-        <h2>{editingId !== null ? 'Update Book' : 'Add New Book'}</h2>
+clearForm()
+setEditingId(null)
 
-        <form onSubmit={handleSubmit} className="book-form">
-          <input
-            type="text"
-            placeholder="Book Title"
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-          />
+await loadBooks()
+} catch (error) {
+console.error('Book operation failed:', error)
+alert(error.message)
+}
+}
 
-          <input
-            type="text"
-            placeholder="Author"
-            value={author}
-            onChange={(event) => setAuthor(event.target.value)}
-          />
+// Edit a book
+function editBook(book) {
+setTitle(book.title)
+setAuthor(book.author)
+setGenre(book.genre)
+setIsbn(book.isbn)
+setQuantity(book.quantity)
+setEditingId(book.id)
+}
 
-          <input
-            type="text"
-            placeholder="Genre"
-            value={genre}
-            onChange={(event) => setGenre(event.target.value)}
-          />
+// Delete a book
+async function deleteBook(id) {
+if (!window.confirm('Are you sure you want to delete this book?')) {
+return
+}
 
-          <input
-            type="text"
-            placeholder="ISBN"
-            value={isbn}
-            onChange={(event) => setIsbn(event.target.value)}
-          />
+try {
+const response = await fetch(`${API_URL}/${id}`, {
+method: 'DELETE',
+})
 
-          <input
-            type="number"
-            min="1"
-            placeholder="Initial Quantity"
-            value={quantity}
-            onChange={(event) => setQuantity(event.target.value)}
-          />
+const data = await response.json()
 
-          <button type="submit">
-            {editingId !== null ? 'Update Book' : 'Add Book'}
-          </button>
-        </form>
+if (!response.ok) {
+throw new Error(data.message || 'Failed to delete book.')
+}
 
-        <div className="books-list">
-          <h2>Book List</h2>
+alert(data.message)
+await loadBooks()
+} catch (error) {
+console.error('Delete failed:', error)
+alert(error.message)
+}
+}
 
-          {books.length === 0 ? (
-            <p className="empty-message">
-              No books have been added yet.
-            </p>
-          ) : (
-            books.map((book) => (
-              <BookCard
-                key={book.id}
-                book={book}
-                onEdit={editBook}
-                onDelete={deleteBook}
-              />
-            ))
-          )}
-        </div>
-      </section>
-    </main>
-  )
+// Clear form
+function clearForm() {
+setTitle('')
+setAuthor('')
+setGenre('')
+setIsbn('')
+setQuantity('')
+}
+
+return (
+<main className="page-content">
+<div className="page-header">
+<p className="small-title">LIBRARY</p>
+<h1>Book Management</h1>
+<p>Add, update and manage books in the library.</p>
+</div>
+
+<section className="content-card">
+<h2>{editingId !== null ? 'Update Book' : 'Add New Book'}</h2>
+
+<form onSubmit={handleSubmit} className="book-form">
+<input
+type="text"
+placeholder="Book Title"
+value={title}
+onChange={(event) => setTitle(event.target.value)}
+required
+/>
+
+<input
+type="text"
+placeholder="Author"
+value={author}
+onChange={(event) => setAuthor(event.target.value)}
+required
+/>
+
+<input
+type="text"
+placeholder="Genre"
+value={genre}
+onChange={(event) => setGenre(event.target.value)}
+required
+/>
+
+<input
+type="text"
+placeholder="ISBN"
+value={isbn}
+onChange={(event) => setIsbn(event.target.value)}
+required
+/>
+
+<input
+type="number"
+min="1"
+placeholder="Initial Quantity"
+value={quantity}
+onChange={(event) => setQuantity(event.target.value)}
+required
+/>
+
+<button type="submit">
+{editingId !== null ? 'Update Book' : 'Add Book'}
+</button>
+</form>
+
+<div className="books-list">
+<h2>Book List</h2>
+
+{books.length === 0 ? (
+<p className="empty-message">
+No books have been added yet.
+</p>
+) : (
+books.map((book) => (
+<BookCard
+key={book.id}
+book={book}
+onEdit={editBook}
+onDelete={deleteBook}
+/>
+))
+)}
+</div>
+</section>
+</main>
+)
 }
 
 export default Books
