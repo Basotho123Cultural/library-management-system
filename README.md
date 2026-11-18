@@ -22,6 +22,7 @@ Main Features
 •	Manage library users
 •	Search for books
 •	Low-stock notifications
+
 User Roles
 Administrator
 •	Access all system pages.
@@ -30,15 +31,19 @@ Administrator
 Librarian
 •	Manage books and stock.
 •	Manage borrowing and returning transactions.
+
 Member
 •	View available books.
 •	Borrow and return books.
+
 Project Structure
 •	backend/ – Express.js server and API.
 •	src/ – React application source code.
 •	public/ – Public frontend assets.
 •	package.json – Frontend dependencies and scripts.
-Installation and Setup
+  
+  
+  Installation and Setup
 
 1.	Clone the repository.
 2.	Install frontend dependencies using npm install.
@@ -46,6 +51,7 @@ Installation and Setup
 4.	Configure the backend .env file with your database credentials.
 5.	Start the backend server using node server.js.
 6.	Start the frontend using npm run dev.
+
 Database
 The application uses MySQL to store books, users, and transactions.
 Developer
